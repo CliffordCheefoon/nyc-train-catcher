@@ -1,77 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>NYC Train Catcher</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-        .container { max-width: 400px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
-        h1 { text-align: center; color: #333; }
-        .train-list { margin-top: 24px; }
-        .train { background: #e3eafc; margin-bottom: 16px; padding: 16px; border-radius: 6px; }
-        .train-time { font-size: 1.5em; color: #1a237e; }
-        .train-line { font-weight: bold; color: #3949ab; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .train-list {
+            margin-top: 24px;
+        }
+
+        .train {
+            background: #e3eafc;
+            margin-bottom: 16px;
+            padding: 16px;
+            border-radius: 6px;
+        }
+
+        .train-main {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1a237e;
+        }
+
+        .train-sub {
+            font-size: 1em;
+            color: #3949ab;
+        }
+
+        .train-status {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: rgb(50, 80, 145);
+        }
+
+        .train-line {
+            font-size: 3em;
+            font-weight: bold;
+            color: #1a237e;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Manhattan Bound Trains at Utica Ave.</h1>
+        <div id="last-refreshed" style="text-align:center; color:#666; font-size:0.95em; margin-bottom:10px;">
+            Last refreshed: <span id="last-refreshed-time">Loading...</span>
+        </div>
+
         <div class="train-list" id="train-list">
-            <div class="train" style="display: flex; align-items: stretch;">
-                <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
-                    <img id="logo1" src="logos/A.png" alt="A Line Logo" style="width:40px; height:40px; object-fit:contain;">
-                </div>
-                <div style="flex: 1;">
-                    <div class="train-line">Line: <span id="line1">-</span></div>
-                    <div>Destination: <span id="dest1">-</span></div>
-                    <div class="train-time" id="time1">--:--</div>
-                </div>
-            </div>
-            <div class="train" style="display: flex; align-items: stretch;">
-                <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
-                    <img id="logo2" src="logos/C.png" alt="C Line Logo" style="width:40px; height:40px; object-fit:contain;">
-                </div>
-                <div style="flex: 1;">
-                    <div class="train-line">Line: <span id="line2">-</span></div>
-                    <div>Destination: <span id="dest2">-</span></div>
-                    <div class="train-time" id="time2">--:--</div>
-                </div>
-            </div>
         </div>
     </div>
 
-    
-    <script  src="https://unpkg.com/gtfs-realtime-pbf-js-module@1.0.0/gtfs-realtime.browser.proto.js"></script>
+
+    <script src="https://unpkg.com/gtfs-realtime-pbf-js-module@1.0.0/gtfs-realtime.browser.proto.js"></script>
     <script type="module" src="https://unpkg.com/pbf@3.0.5/dist/pbf.js"></script>
 
     <script type="module">
-        const URL ="https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
-        let response = await fetch(URL);
-        if (response.ok) {
-        // if HTTP-status is 200-299
-        // get the response body (the method explained below)
-        const bufferRes = await response.arrayBuffer();
-        const pbf = new Pbf(new Uint8Array(bufferRes));
-        const obj = FeedMessage.read(pbf);
+        const URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
+        const TARGET_STATION_IDS = ["A48N"]; // North Bound - Utica Aveue
+        const TIME_TO_STATION_MINS = 5; // Estimated time to reach the station
+        const REFRESH_INTERVAL_MS = 5000; // Refresh interval in milliseconds
+        const ENABLE_LOGGING = true;
 
-        console.log("the data!", obj.entity);
-        } else {
-        console.error("error:", response.status);
+        function log(...message) {
+            if (ENABLE_LOGGING)
+                console.log(message);
         }
 
-        const nextTrains = [
-            { line: "A", destination: "Inwood-207 St", time: "3 min" },
-            { line: "C", destination: "Euclid Av", time: "7 min" }
-        ];
 
-        document.getElementById('line1').textContent = nextTrains[0].line;
-        document.getElementById('dest1').textContent = nextTrains[0].destination;
-        document.getElementById('time1').textContent = nextTrains[0].time;
+        async function getFeed(params) {
+            let response = await fetch(URL);
+            if (response.ok) {
+                // if HTTP-status is 200-299
+                // get the response body (the method explained below)
+                const bufferRes = await response.arrayBuffer();
+                const pbf = new Pbf(new Uint8Array(bufferRes));
+                const obj = FeedMessage.read(pbf);
+                var transitData = obj.entity;
 
-        document.getElementById('line2').textContent = nextTrains[1].line;
-        document.getElementById('dest2').textContent = nextTrains[1].destination;
-        document.getElementById('time2').textContent = nextTrains[1].time;
+                log("Raw Data:", transitData);
+                return transitData;
+            } else {
+                console.error("error:", response.status);
+            }
+        }
+
+        function filterForTargetStations(transitData) {
+            const withValidTripUpdates = transitData.filter(e => e.trip_update !== null);
+            log("Entities with valid trip_updates:", withValidTripUpdates);
+            var updatesForTargetStations = [];
+
+            for (const entity of withValidTripUpdates) {
+                const stopTimeUpdates = entity.trip_update.stop_time_update;
+                const isStoppingAtStation = stopTimeUpdates.some(stu => TARGET_STATION_IDS.includes(stu.stop_id));
+                if (isStoppingAtStation) {
+                    var updates = stopTimeUpdates.filter(stu => TARGET_STATION_IDS.includes(stu.stop_id));
+
+                    for (const update of updates) {
+                        updatesForTargetStations.push(
+                            {
+                                "train_line": entity.trip_update.trip.route_id,
+                                "direction_id": entity.trip_update.trip.direction_id,
+                                "station_id": update.stop_id,
+                                "arrival_time": update.arrival.time,
+                                "arrival_delay": update.arrival.delay,
+                            });
+                    }
+
+                }
+            }
+            log("Trip Update Entity:", updatesForTargetStations);
+            return updatesForTargetStations;
+        }
+
+        function updateUI(stationUpdates) {
+
+            stationUpdates.sort((a, b) => a.arrival_time - b.arrival_time);
+
+            const trainList = document.getElementById('train-list');
+            trainList.innerHTML = '';
+
+            stationUpdates.forEach((update, idx) => {
+                const leaveInMin = Math.round((update.arrival_time - Date.now() / 1000 - TIME_TO_STATION_MINS * 60) / 60);
+                const arrivalInMin = Math.round((update.arrival_time - Date.now() / 1000) / 60);
+                var statusText = '';
+                if (update.arrival_delay > 0) {
+                    statusText = `Delayed`;
+                } else {
+                    statusText = 'On Time';
+                }
+                const trainDiv = document.createElement('div');
+                trainDiv.className = 'train';
+                trainDiv.style.display = 'flex';
+                trainDiv.style.alignItems = 'stretch';
+                if ((update.arrival_time - Date.now() / 1000 - TIME_TO_STATION_MINS * 60) / 60 <= 0) {
+                    trainDiv.style.backgroundColor = '#eb9494';
+                }
+                trainDiv.innerHTML = `
+                    <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
+                        <span class="train-line">${update.train_line}</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="train-main">Leave in: <span>${leaveInMin} min</span></div>
+                        <div class="train-status">${statusText}</div>
+                        <div class="train-sub">Train arrives in: <span>${arrivalInMin} min</span></div>
+
+                    </div>
+                `;
+                trainList.appendChild(trainDiv);
+            });
+
+        }
+
+        function updateLastRefreshed() {
+            const now = new Date();
+            document.getElementById('last-refreshed-time').textContent = now.toLocaleTimeString();
+        }
+
+        async function refresh() {
+            const transitData = await getFeed();
+            const stationUpdates = filterForTargetStations(transitData);
+            updateUI(stationUpdates);
+            updateLastRefreshed();
+        }
+
+        refresh();
+        setInterval(refresh, REFRESH_INTERVAL_MS);
+
     </script>
 </body>
+
 </html>
