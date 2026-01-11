@@ -65,9 +65,9 @@
 
 <body>
     <div class="container">
-        <h1>Manhattan Bound Trains at Utica Ave.</h1>
+        <h1>Manhattan Bound Trains at Utica Ave. (A/C lines)</h1>
         <div id="last-refreshed" style="text-align:center; color:#666; font-size:0.95em; margin-bottom:10px;">
-            Last refreshed: <span id="last-refreshed-time">Loading...</span>
+            <b>Auto Updates</b> <br> Last Update: <span id="last-refreshed-time">Loading...</span>
         </div>
 
         <div class="train-list" id="train-list">
@@ -81,7 +81,6 @@
     <script type="module">
         const URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace"
         const TARGET_STATION_IDS = ["A48N"]; // North Bound - Utica Aveue
-        const TIME_TO_STATION_MINS = 5; // Estimated time to reach the station
         const REFRESH_INTERVAL_MS = 5000; // Refresh interval in milliseconds
         const ENABLE_LOGGING = true;
 
@@ -136,7 +135,7 @@
             return updatesForTargetStations;
         }
 
-        function updateUI(stationUpdates) {
+        function updateUI(stationUpdates, timeToStationMins) {
 
             stationUpdates.sort((a, b) => a.arrival_time - b.arrival_time);
 
@@ -144,7 +143,7 @@
             trainList.innerHTML = '';
 
             stationUpdates.forEach((update, idx) => {
-                const leaveInMin = Math.round((update.arrival_time - Date.now() / 1000 - TIME_TO_STATION_MINS * 60) / 60);
+                const leaveInMin = Math.round((update.arrival_time - Date.now() / 1000 - timeToStationMins * 60) / 60);
                 const arrivalInMin = Math.round((update.arrival_time - Date.now() / 1000) / 60);
                 var statusText = '';
                 if (update.arrival_delay > 0) {
@@ -156,20 +155,39 @@
                 trainDiv.className = 'train';
                 trainDiv.style.display = 'flex';
                 trainDiv.style.alignItems = 'stretch';
-                if ((update.arrival_time - Date.now() / 1000 - TIME_TO_STATION_MINS * 60) / 60 <= 0) {
-                    trainDiv.style.backgroundColor = '#eb9494';
-                }
-                trainDiv.innerHTML = `
-                    <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
-                        <span class="train-line">${update.train_line}</span>
-                    </div>
-                    <div style="flex: 1;">
-                        <div class="train-main">Leave in: <span>${leaveInMin} min</span></div>
-                        <div class="train-status">${statusText}</div>
-                        <div class="train-sub">Train arrives in: <span>${arrivalInMin} min</span></div>
 
-                    </div>
-                `;
+                if (timeToStationMins == 0) {
+                    if ((update.arrival_time - Date.now() / 1000) / 60 <= 0) {
+                        trainDiv.style.backgroundColor = '#eb9494';
+                    }
+                    trainDiv.innerHTML = `
+                        <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
+                            <span class="train-line">${update.train_line}</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div class="train-main">Train arrives in: <span>${arrivalInMin} min</span></div>
+                            <div class="train-status">${statusText}</div>
+                        </div>
+                    `;
+                }
+                else 
+                {
+                    if ((update.arrival_time - Date.now() / 1000 - timeToStationMins * 60) / 60 <= 0) {
+                        trainDiv.style.backgroundColor = '#eb9494';
+                    }
+                    trainDiv.innerHTML = `
+                        <div style="display: flex; flex-direction: column; justify-content: center; margin-right: 16px;">
+                            <span class="train-line">${update.train_line}</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div class="train-main">Leave in: <span>${leaveInMin} min</span></div>
+                            <div class="train-status">${statusText}</div>
+                            <div class="train-sub">Train arrives in: <span>${arrivalInMin} min</span></div>
+
+                        </div>
+                    `;
+                }
+
                 trainList.appendChild(trainDiv);
             });
 
@@ -183,7 +201,9 @@
         async function refresh() {
             const transitData = await getFeed();
             const stationUpdates = filterForTargetStations(transitData);
-            updateUI(stationUpdates);
+            const urlParams = new URLSearchParams(window.location.search);
+            const timeToStationMins = parseInt(urlParams.get('timeToStationMins')) || 0;
+            updateUI(stationUpdates, timeToStationMins);
             updateLastRefreshed();
         }
 
